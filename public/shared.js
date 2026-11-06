@@ -71,23 +71,22 @@ export function connectLabSocket(handlers = {}) {
 
 export function createLabSounds() {
   let ctx = null;
+  let unlocked = false;
 
-  function ensure() {
+  function getContext() {
     if (!ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return null;
       ctx = new AudioCtx();
     }
-    if (ctx.state === "suspended") ctx.resume();
     return ctx;
   }
 
   function tone({ frequency, duration, type = "sine", gain = 0.08, slideTo }) {
-    const audio = ensure();
-    if (!audio) return;
-    const now = audio.currentTime;
-    const osc = audio.createOscillator();
-    const amp = audio.createGain();
+    if (!unlocked || !ctx || ctx.state !== "running") return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const amp = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(frequency, now);
     if (slideTo) {
@@ -97,14 +96,35 @@ export function createLabSounds() {
     amp.gain.exponentialRampToValueAtTime(gain, now + 0.02);
     amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     osc.connect(amp);
-    amp.connect(audio.destination);
+    amp.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + duration + 0.02);
   }
 
   return {
-    unlock() {
-      ensure();
+    get unlocked() {
+      return unlocked;
+    },
+    // Must be called from a user gesture (click/tap/keypress).
+    async unlock() {
+      const audio = getContext();
+      if (!audio) return false;
+      try {
+        if (audio.state === "suspended") {
+          await audio.resume();
+        }
+        // Silent blip so some browsers fully mark audio as user-activated.
+        const buffer = audio.createBuffer(1, 1, audio.sampleRate);
+        const source = audio.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audio.destination);
+        source.start(0);
+        unlocked = audio.state === "running";
+        return unlocked;
+      } catch {
+        unlocked = false;
+        return false;
+      }
     },
     grant() {
       tone({ frequency: 523.25, duration: 0.12, type: "triangle", gain: 0.09 });

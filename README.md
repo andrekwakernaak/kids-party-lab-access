@@ -32,6 +32,6 @@ Local-only shortcuts:
 
 ## Notes
 
-- Sounds use the Web Audio API (no audio files). Tap or click the display once if the browser blocks audio until user interaction.
+- Sounds use the Web Audio API (no audio files). On the display page, tap **Tik om geluid te activeren** once after opening it — browsers block audio until a user gesture.
 - The server listens on all interfaces (`0.0.0.0:3000`) so phones on the LAN can connect.
 - Optional: set `PORT=8080 npm start` to use another port.

@@ -33,9 +33,19 @@
         </div>
       </section>
 
-      <footer class="footer">
+      <footer class="footer" style="display: none;">
+        <div class="control-hint">
+          Telefoonbediening:
+          <code id="controlUrl">/control</code>
+        </div>
+        <div>Auto-reset na 5 seconden</div>
       </footer>
     </main>
+
+    <button class="audio-gate" id="audioGate" type="button">
+      <span class="audio-gate-title">Tik om geluid te activeren</span>
+      <span class="audio-gate-sub">Vereist één keer — daarna speelt grant/deny audio</span>
+    </button>
 
     <script type="module">
       import {
@@ -70,6 +80,7 @@
       const clock = document.getElementById("clock");
       const controlUrl = document.getElementById("controlUrl");
       const connection = document.getElementById("connection");
+      const audioGate = document.getElementById("audioGate");
       const sounds = createLabSounds();
       const setConn = bindConnectionLabel(connection);
 
@@ -77,9 +88,12 @@
       let lastAction = "idle";
       let lastUpdatedAt = 0;
 
-      controlUrl.textContent = `${location.origin}/control`;
+      if (controlUrl) {
+        controlUrl.textContent = `${location.origin}/control`;
+      }
 
       function tickClock() {
+        if (!clock) return;
         clock.textContent = new Date().toLocaleTimeString("nl-NL", {
           hour: "2-digit",
           minute: "2-digit",
@@ -116,7 +130,7 @@
         applyVisual(action);
 
         if (isNewDecision) {
-          sounds.unlock();
+          // Audio only plays after the gate was dismissed with a user gesture.
           if (action === "grant") sounds.grant();
           if (action === "deny") sounds.deny();
           scheduleIdle();
@@ -127,13 +141,20 @@
         }
       }
 
-      document.body.addEventListener(
-        "pointerdown",
-        () => {
-          sounds.unlock();
-        },
-        { once: true }
-      );
+      async function enableAudio() {
+        const ok = await sounds.unlock();
+        if (!ok) return;
+        audioGate.hidden = true;
+        audioGate.setAttribute("aria-hidden", "true");
+      }
+
+      audioGate.addEventListener("click", enableAudio);
+      audioGate.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          enableAudio();
+        }
+      });
 
       tickClock();
       setInterval(tickClock, 1000);
@@ -141,7 +162,7 @@
       fetch("/api/info")
         .then((res) => res.json())
         .then((info) => {
-          if (info.controlPaths && info.controlPaths[0]) {
+          if (controlUrl && info.controlPaths && info.controlPaths[0]) {
             controlUrl.textContent = info.controlPaths[0];
           }
         })
