@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Lab Access Control — Bediening</title>
+    <link rel="stylesheet" href="/control.css" />
+  </head>
+  <body>
+    <main class="control">
+      <header class="header">
+        <div>
+          <h1>Lab Bediening</h1>
+          <p>Tik om toegang te geven of te weigeren</p>
+        </div>
+        <div class="conn" id="connection" data-status="connecting">
+          <span class="conn-dot" aria-hidden="true"></span>
+          <span class="conn-text">Verbinden…</span>
+        </div>
+      </header>
+
+      <section class="actions">
+        <button class="btn btn-grant" id="grantBtn" type="button">
+          <span class="btn-label">Toegang</span>
+          <span class="btn-sub">Groen scherm + piep</span>
+        </button>
+        <button class="btn btn-deny" id="denyBtn" type="button">
+          <span class="btn-label">Geweigerd</span>
+          <span class="btn-sub">Rood scherm + alarm</span>
+        </button>
+        <button class="btn btn-idle" id="idleBtn" type="button">
+          <span class="btn-label" style="font-size: 1.1rem">Reset / Idle</span>
+        </button>
+      </section>
+
+      <footer class="footer">
+        Zelfde Wi‑Fi als het display-apparaat. Het scherm reset automatisch na
+        een paar seconden.
+      </footer>
+    </main>
+
+    <div class="flash" id="flash" aria-hidden="true"></div>
+
+    <script type="module">
+      import { connectLabSocket, bindConnectionLabel } from "/shared.js";
+
+      const connection = document.getElementById("connection");
+      const grantBtn = document.getElementById("grantBtn");
+      const denyBtn = document.getElementById("denyBtn");
+      const idleBtn = document.getElementById("idleBtn");
+      const flash = document.getElementById("flash");
+      const setConn = bindConnectionLabel(connection);
+
+      let connected = false;
+
+      const socket = connectLabSocket({
+        onStatus(status) {
+          connected = status === "connected";
+          setConn(status);
+          grantBtn.disabled = !connected;
+          denyBtn.disabled = !connected;
+          idleBtn.disabled = !connected;
+        },
+      });
+
+      function pulse(kind) {
+        flash.removeAttribute("data-kind");
+        void flash.offsetWidth;
+        flash.dataset.kind = kind;
+        if (navigator.vibrate) {
+          navigator.vibrate(kind === "deny" ? [40, 40, 60] : 30);
+        }
+      }
+
+      function send(action) {
+        if (!socket.sendAction(action)) return;
+        if (action === "grant" || action === "deny") pulse(action);
+      }
+
+      grantBtn.addEventListener("click", () => send("grant"));
+      denyBtn.addEventListener("click", () => send("deny"));
+      idleBtn.addEventListener("click", () => send("idle"));
+    </script>
+  </body>
+</html>

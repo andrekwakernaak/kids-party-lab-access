@@ -1,0 +1,91 @@
+:root {
+  --bg: #071016;
+  --panel: #0d1a22;
+  --line: #1e3a4a;
+  --text: #d7f3ff;
+  --muted: #7fa8b8;
+  --amber: #f0b429;
+  --green: #24e07a;
+  --green-deep: #0a5c36;
+  --red: #ff3b4e;
+  --red-deep: #6b1020;
+  --glow-amber: 0 0 28px rgba(240, 180, 41, 0.35);
+  --glow-green: 0 0 42px rgba(36, 224, 122, 0.55);
+  --glow-red: 0 0 42px rgba(255, 59, 78, 0.55);
+  --font-display: "Orbitron", "Segoe UI", sans-serif;
+  --font-mono: "Share Tech Mono", "Courier New", monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+body {
+  min-height: 100dvh;
+}
+
+button {
+  font: inherit;
+  border: none;
+  cursor: pointer;
+}
+
+a {
+  color: var(--amber);
+}
+
+.conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.conn-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: #666;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.conn[data-status="connected"] .conn-dot {
+  background: var(--green);
+  box-shadow: 0 0 10px rgba(36, 224, 122, 0.8);
+}
+
+.conn[data-status="connecting"] .conn-dot,
+.conn[data-status="reconnecting"] .conn-dot {
+  background: var(--amber);
+  box-shadow: 0 0 10px rgba(240, 180, 41, 0.7);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.conn[data-status="disconnected"] .conn-dot {
+  background: var(--red);
+  box-shadow: 0 0 10px rgba(255, 59, 78, 0.7);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}

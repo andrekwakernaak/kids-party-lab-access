@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lab Access Control — Display</title>
+    <link rel="stylesheet" href="/display.css" />
+  </head>
+  <body>
+    <main class="display" data-state="idle" id="display">
+      <header class="topbar">
+        <div class="brand">
+          <p class="brand-kicker">Sector 7 // Beveiliging</p>
+          <h1 class="brand-title">Lab Access Control</h1>
+        </div>
+        <div class="meta">
+          <div class="conn" id="connection" data-status="connecting">
+            <span class="conn-dot" aria-hidden="true"></span>
+            <span class="conn-text">Verbinden…</span>
+          </div>
+          <div id="clock">--:--:--</div>
+        </div>
+      </header>
+
+      <section class="stage" aria-live="polite">
+        <div class="panel">
+          <p class="status-label" id="statusLabel">Systeemstatus</p>
+          <h2 class="status-message" id="statusMessage">Wachten op scan</h2>
+          <p class="status-sub" id="statusSub">Presenteer je laboratoriumpas</p>
+          <div class="scanner" aria-hidden="true">
+            <div class="scanner-bar"></div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+      </footer>
+    </main>
+
+    <script type="module">
+      import {
+        connectLabSocket,
+        createLabSounds,
+        bindConnectionLabel,
+      } from "/shared.js";
+
+      const IDLE_MS = 5000;
+      const copy = {
+        idle: {
+          label: "Systeemstatus",
+          message: "Wachten op scan",
+          sub: "Presenteer je laboratoriumpas",
+        },
+        grant: {
+          label: "Autorisatie",
+          message: "Toegang verleend",
+          sub: "Welkom in het laboratorium",
+        },
+        deny: {
+          label: "Beveiligingsalarm",
+          message: "Toegang geweigerd",
+          sub: "Onbevoegde toegang geblokkeerd",
+        },
+      };
+
+      const display = document.getElementById("display");
+      const statusLabel = document.getElementById("statusLabel");
+      const statusMessage = document.getElementById("statusMessage");
+      const statusSub = document.getElementById("statusSub");
+      const clock = document.getElementById("clock");
+      const controlUrl = document.getElementById("controlUrl");
+      const connection = document.getElementById("connection");
+      const sounds = createLabSounds();
+      const setConn = bindConnectionLabel(connection);
+
+      let idleTimer = null;
+      let lastAction = "idle";
+      let lastUpdatedAt = 0;
+
+      controlUrl.textContent = `${location.origin}/control`;
+
+      function tickClock() {
+        clock.textContent = new Date().toLocaleTimeString("nl-NL", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+
+      function applyVisual(action) {
+        const text = copy[action] || copy.idle;
+        display.dataset.state = action;
+        statusLabel.textContent = text.label;
+        statusMessage.textContent = text.message;
+        statusSub.textContent = text.sub;
+      }
+
+      function scheduleIdle() {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          applyVisual("idle");
+          lastAction = "idle";
+        }, IDLE_MS);
+      }
+
+      function onState(state) {
+        const action = state.action || "idle";
+        const updatedAt = state.updatedAt || 0;
+        if (action === lastAction && updatedAt === lastUpdatedAt) return;
+
+        const isNewDecision =
+          updatedAt !== lastUpdatedAt && (action === "grant" || action === "deny");
+
+        lastAction = action;
+        lastUpdatedAt = updatedAt;
+        applyVisual(action);
+
+        if (isNewDecision) {
+          sounds.unlock();
+          if (action === "grant") sounds.grant();
+          if (action === "deny") sounds.deny();
+          scheduleIdle();
+        } else if (action === "idle") {
+          clearTimeout(idleTimer);
+        } else {
+          scheduleIdle();
+        }
+      }
+
+      document.body.addEventListener(
+        "pointerdown",
+        () => {
+          sounds.unlock();
+        },
+        { once: true }
+      );
+
+      tickClock();
+      setInterval(tickClock, 1000);
+
+      fetch("/api/info")
+        .then((res) => res.json())
+        .then((info) => {
+          if (info.controlPaths && info.controlPaths[0]) {
+            controlUrl.textContent = info.controlPaths[0];
+          }
+        })
+        .catch(() => {});
+
+      connectLabSocket({
+        onState,
+        onStatus: setConn,
+      });
+    </script>
+  </body>
+</html>
